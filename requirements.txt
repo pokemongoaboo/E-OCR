@@ -1,1 +1,3 @@
-openai==0.28
+streamlit
+pillow
+openai>=1.0.0
