@@ -6,6 +6,7 @@ from openai import OpenAI
 import requests
 from datetime import datetime, timedelta
 import json
+import re
 
 # Initialize session state
 if 'ocr_result' not in st.session_state:
@@ -70,7 +71,27 @@ def extract_information(ocr_result):
             ],
             max_tokens=200
         )
-        return json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content
+        st.write("GPT-4 Response:", content)  # Debug output
+        
+        # Try to parse as JSON
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            # If JSON parsing fails, try to extract information using regex
+            st.write("JSON parsing failed. Attempting regex extraction.")
+            info = {}
+            patterns = {
+                'date': r'date["\s:]+([^,"}\s]+)',
+                'time': r'time["\s:]+([^,"}\s]+)',
+                'location': r'location["\s:]+([^,"}\s]+)',
+                'department': r'department["\s:]+([^,"}\s]+)',
+                'doctor': r'doctor["\s:]+([^,"}\s]+)'
+            }
+            for key, pattern in patterns.items():
+                match = re.search(pattern, content, re.IGNORECASE)
+                info[key] = match.group(1) if match else None
+            return info
     except Exception as e:
         st.error(f"提取信息時發生錯誤：{str(e)}")
         return {}
