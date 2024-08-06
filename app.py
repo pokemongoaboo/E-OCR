@@ -134,7 +134,9 @@ if uploaded_file is not None:
 
         # Create calendar event button
         if st.button('預約日曆'):
-            title = f"預約回診-{parsed_info.get('Medical department', 'Unknown')}+{parsed_info.get('Doctor\"s name', 'Unknown')}"
+            department = parsed_info.get('Medical department', 'Unknown')
+            doctor = parsed_info.get('Doctor\'s name', 'Unknown')
+            title = f"預約回診-{department}+{doctor}"
             date = parsed_info.get('Date', '')
             time = parsed_info.get('Time', '')
             location = parsed_info.get('Location', '')
