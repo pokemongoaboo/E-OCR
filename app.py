@@ -7,6 +7,14 @@ import requests
 from datetime import datetime, timedelta
 import json
 
+# Initialize session state
+if 'ocr_result' not in st.session_state:
+    st.session_state.ocr_result = None
+if 'extracted_info' not in st.session_state:
+    st.session_state.extracted_info = None
+if 'edited_info' not in st.session_state:
+    st.session_state.edited_info = None
+
 # Set up OpenAI client
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
@@ -114,53 +122,55 @@ if uploaded_file is not None:
     
     if st.button('開始辨識文字並提取信息', key='process_image'):
         with st.spinner('正在處理圖片...'):
-            ocr_result = perform_ocr(uploaded_file)
-            if "處理圖片時發生錯誤" in ocr_result:
-                st.error(ocr_result)
+            st.session_state.ocr_result = perform_ocr(uploaded_file)
+            if "處理圖片時發生錯誤" in st.session_state.ocr_result:
+                st.error(st.session_state.ocr_result)
             else:
                 st.success('OCR處理完成!')
                 st.write("OCR辨識結果:")
-                st.write(ocr_result)
+                st.write(st.session_state.ocr_result)
                 
                 with st.spinner('正在提取信息...'):
-                    extracted_info = extract_information(ocr_result)
+                    st.session_state.extracted_info = extract_information(st.session_state.ocr_result)
                 st.success('信息提取完成!')
                 st.write("提取的信息:")
-                st.write(extracted_info)
+                st.write(st.session_state.extracted_info)
+                st.session_state.edited_info = st.session_state.extracted_info
 
-        st.write("如果提取的信息不準確，您可以手動編輯修正：")
-        edited_info = st.text_area("編輯提取的信息", extracted_info, key='edit_info')
-        if st.button('保存編輯後的信息', key='save_info'):
-            st.success('信息已更新!')
-            st.write("最終信息:")
-            st.write(edited_info)
+if st.session_state.extracted_info:
+    st.write("如果提取的信息不準確，您可以手動編輯修正：")
+    st.session_state.edited_info = st.text_area("編輯提取的信息", st.session_state.edited_info, key='edit_info')
+    if st.button('保存編輯後的信息', key='save_info'):
+        st.success('信息已更新!')
+        st.write("最終信息:")
+        st.write(st.session_state.edited_info)
 
-        # Parse the extracted information
-        info_lines = edited_info.split('\n')
-        parsed_info = {}
-        for line in info_lines:
-            if ':' in line:
-                key, value = line.split(':', 1)
-                parsed_info[key.strip()] = value.strip()
+    # Parse the extracted information
+    info_lines = st.session_state.edited_info.split('\n')
+    parsed_info = {}
+    for line in info_lines:
+        if ':' in line:
+            key, value = line.split(':', 1)
+            parsed_info[key.strip()] = value.strip()
 
-        # Create calendar event button
-        if st.button('預約日曆', key='create_event'):
-            st.write("預約日曆按鈕被點擊")
-            department = parsed_info.get('Medical department', 'Unknown')
-            doctor = parsed_info.get('Doctor\'s name', 'Unknown')
-            title = f"預約回診-{department}+{doctor}"
-            date = parsed_info.get('Date', '')
-            time = parsed_info.get('Time', '')
-            location = parsed_info.get('Location', '')
+    # Create calendar event button
+    if st.button('預約日曆', key='create_event'):
+        st.write("預約日曆按鈕被點擊")
+        department = parsed_info.get('Medical department', 'Unknown')
+        doctor = parsed_info.get('Doctor\'s name', 'Unknown')
+        title = f"預約回診-{department}+{doctor}"
+        date = parsed_info.get('Date', '')
+        time = parsed_info.get('Time', '')
+        location = parsed_info.get('Location', '')
 
-            st.write(f"提取的信息: 科別={department}, 醫生={doctor}, 日期={date}, 時間={time}, 地點={location}")
+        st.write(f"提取的信息: 科別={department}, 醫生={doctor}, 日期={date}, 時間={time}, 地點={location}")
 
-            if date and time and location:
-                result = create_calendar_event(title, date, time, location)
-                st.write("日曆事件創建結果:")
-                st.write(result)
-            else:
-                st.error("無法創建日曆事件。請確保日期、時間和地點信息都已提取。")
+        if date and time and location:
+            result = create_calendar_event(title, date, time, location)
+            st.write("日曆事件創建結果:")
+            st.write(result)
+        else:
+            st.error("無法創建日曆事件。請確保日期、時間和地點信息都已提取。")
 
 st.write("""
 注意：
