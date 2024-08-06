@@ -11,9 +11,7 @@ import json
 if 'ocr_result' not in st.session_state:
     st.session_state.ocr_result = None
 if 'extracted_info' not in st.session_state:
-    st.session_state.extracted_info = None
-if 'edited_info' not in st.session_state:
-    st.session_state.edited_info = None
+    st.session_state.extracted_info = {}
 
 # Set up OpenAI client
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -68,13 +66,14 @@ def extract_information(ocr_result):
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that extracts specific information from medical documents."},
-                {"role": "user", "content": f"From the following text, please extract the date, time, location, medical department, and doctor's name. If any information is not available, state 'Not Found'. Here's the text:\n\n{ocr_result}"}
+                {"role": "user", "content": f"From the following text, please extract the date, time, location, medical department, and doctor's name. Return the information in a JSON format with keys 'date', 'time', 'location', 'department', and 'doctor'. If any information is not available, set the value to null. Here's the text:\n\n{ocr_result}"}
             ],
             max_tokens=200
         )
-        return response.choices[0].message.content
+        return json.loads(response.choices[0].message.content)
     except Exception as e:
-        return f"提取信息時發生錯誤：{str(e)}"
+        st.error(f"提取信息時發生錯誤：{str(e)}")
+        return {}
 
 def create_calendar_event(title, date, time, location):
     start_datetime = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
@@ -135,48 +134,37 @@ if uploaded_file is not None:
                 st.success('信息提取完成!')
                 st.write("提取的信息:")
                 st.write(st.session_state.extracted_info)
-                st.session_state.edited_info = st.session_state.extracted_info
 
 if st.session_state.extracted_info:
-    st.write("如果提取的信息不準確，您可以手動編輯修正：")
-    st.session_state.edited_info = st.text_area("編輯提取的信息", st.session_state.edited_info, key='edit_info')
-    if st.button('保存編輯後的信息', key='save_info'):
-        st.success('信息已更新!')
-        st.write("最終信息:")
-        st.write(st.session_state.edited_info)
+    st.write("請檢查並編輯提取的信息：")
+    
+    st.session_state.extracted_info['date'] = st.text_input("日期", st.session_state.extracted_info.get('date', ''))
+    st.session_state.extracted_info['time'] = st.text_input("時間", st.session_state.extracted_info.get('time', ''))
+    st.session_state.extracted_info['location'] = st.text_input("地點", st.session_state.extracted_info.get('location', ''))
+    st.session_state.extracted_info['department'] = st.text_input("科別", st.session_state.extracted_info.get('department', ''))
+    st.session_state.extracted_info['doctor'] = st.text_input("醫生", st.session_state.extracted_info.get('doctor', ''))
 
-    # Parse the extracted information
-    info_lines = st.session_state.edited_info.split('\n')
-    parsed_info = {}
-    for line in info_lines:
-        if ':' in line:
-            key, value = line.split(':', 1)
-            parsed_info[key.strip()] = value.strip()
-
-    # Create calendar event button
     if st.button('預約日曆', key='create_event'):
         st.write("預約日曆按鈕被點擊")
-        department = parsed_info.get('Medical department', 'Unknown')
-        doctor = parsed_info.get('Doctor\'s name', 'Unknown')
-        title = f"預約回診-{department}+{doctor}"
-        date = parsed_info.get('Date', '')
-        time = parsed_info.get('Time', '')
-        location = parsed_info.get('Location', '')
+        
+        title = f"預約回診-{st.session_state.extracted_info['department']}+{st.session_state.extracted_info['doctor']}"
+        date = st.session_state.extracted_info['date']
+        time = st.session_state.extracted_info['time']
+        location = st.session_state.extracted_info['location']
 
-        st.write(f"提取的信息: 科別={department}, 醫生={doctor}, 日期={date}, 時間={time}, 地點={location}")
+        st.write(f"提取的信息: 科別={st.session_state.extracted_info['department']}, 醫生={st.session_state.extracted_info['doctor']}, 日期={date}, 時間={time}, 地點={location}")
 
         if date and time and location:
             result = create_calendar_event(title, date, time, location)
             st.write("日曆事件創建結果:")
             st.write(result)
         else:
-            st.error("無法創建日曆事件。請確保日期、時間和地點信息都已提取。")
+            st.error("無法創建日曆事件。請確保日期、時間和地點信息都已填寫。")
 
 st.write("""
 注意：
 1. 請確保上傳的圖片清晰可讀。
-2. 如果某些信息無法從圖片中提取，將顯示為"Not Found"。
-3. 您可以手動編輯和修正提取的信息。
-4. 點擊"預約日曆"按鈕將會在您的 Google 日曆中創建一個事件。
-5. 確保您有權限訪問指定的日曆。
+2. 如果某些信息無法從圖片中提取，您可以手動輸入或修正。
+3. 點擊"預約日曆"按鈕將會在您的 Google 日曆中創建一個事件。
+4. 確保您有權限訪問指定的日曆。
 """)
