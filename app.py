@@ -112,7 +112,7 @@ if uploaded_file is not None:
     image = Image.open(uploaded_file)
     st.image(image, caption='上傳的圖片', use_column_width=True)
     
-    if st.button('開始辨識文字並提取信息'):
+    if st.button('開始辨識文字並提取信息', key='process_image'):
         with st.spinner('正在處理圖片...'):
             ocr_result = perform_ocr(uploaded_file)
             if "處理圖片時發生錯誤" in ocr_result:
@@ -129,8 +129,8 @@ if uploaded_file is not None:
                 st.write(extracted_info)
 
         st.write("如果提取的信息不準確，您可以手動編輯修正：")
-        edited_info = st.text_area("編輯提取的信息", extracted_info)
-        if st.button('保存編輯後的信息'):
+        edited_info = st.text_area("編輯提取的信息", extracted_info, key='edit_info')
+        if st.button('保存編輯後的信息', key='save_info'):
             st.success('信息已更新!')
             st.write("最終信息:")
             st.write(edited_info)
@@ -144,7 +144,7 @@ if uploaded_file is not None:
                 parsed_info[key.strip()] = value.strip()
 
         # Create calendar event button
-        if st.button('預約日曆'):
+        if st.button('預約日曆', key='create_event'):
             st.write("預約日曆按鈕被點擊")
             department = parsed_info.get('Medical department', 'Unknown')
             doctor = parsed_info.get('Doctor\'s name', 'Unknown')
@@ -157,6 +157,7 @@ if uploaded_file is not None:
 
             if date and time and location:
                 result = create_calendar_event(title, date, time, location)
+                st.write("日曆事件創建結果:")
                 st.write(result)
             else:
                 st.error("無法創建日曆事件。請確保日期、時間和地點信息都已提取。")
