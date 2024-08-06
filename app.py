@@ -96,8 +96,28 @@ def extract_information(ocr_result):
         st.error(f"提取信息時發生錯誤：{str(e)}")
         return {}
 
+def convert_tw_date(tw_date):
+    """Convert Taiwan date format (YYY/MM/DD) to Western date format (YYYY-MM-DD)"""
+    try:
+        year, month, day = tw_date.split('/')
+        year = int(year) + 1911  # Convert to Western year
+        return f"{year:04d}-{int(month):02d}-{int(day):02d}"
+    except ValueError:
+        st.error(f"無效的日期格式: {tw_date}。請使用 YYY/MM/DD 格式。")
+        return None
+
 def create_calendar_event(title, date, time, location):
-    start_datetime = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+    # Convert Taiwan date to Western date
+    western_date = convert_tw_date(date)
+    if not western_date:
+        return "無法創建日曆事件：日期格式無效。"
+
+    # Ensure time is in HH:MM format
+    if ':' not in time:
+        st.error(f"無效的時間格式: {time}。請使用 HH:MM 格式。")
+        return "無法創建日曆事件：時間格式無效。"
+
+    start_datetime = datetime.strptime(f"{western_date} {time}", "%Y-%m-%d %H:%M")
     end_datetime = start_datetime + timedelta(hours=1)
 
     event_data = {
@@ -159,8 +179,8 @@ if uploaded_file is not None:
 if st.session_state.extracted_info:
     st.write("請檢查並編輯提取的信息：")
     
-    st.session_state.extracted_info['date'] = st.text_input("日期", st.session_state.extracted_info.get('date', ''))
-    st.session_state.extracted_info['time'] = st.text_input("時間", st.session_state.extracted_info.get('time', ''))
+    st.session_state.extracted_info['date'] = st.text_input("日期 (YYY/MM/DD)", st.session_state.extracted_info.get('date', ''))
+    st.session_state.extracted_info['time'] = st.text_input("時間 (HH:MM)", st.session_state.extracted_info.get('time', ''))
     st.session_state.extracted_info['location'] = st.text_input("地點", st.session_state.extracted_info.get('location', ''))
     st.session_state.extracted_info['department'] = st.text_input("科別", st.session_state.extracted_info.get('department', ''))
     st.session_state.extracted_info['doctor'] = st.text_input("醫生", st.session_state.extracted_info.get('doctor', ''))
@@ -186,6 +206,8 @@ st.write("""
 注意：
 1. 請確保上傳的圖片清晰可讀。
 2. 如果某些信息無法從圖片中提取，您可以手動輸入或修正。
-3. 點擊"預約日曆"按鈕將會在您的 Google 日曆中創建一個事件。
-4. 確保您有權限訪問指定的日曆。
+3. 日期格式應為 YYY/MM/DD（民國年）。
+4. 時間格式應為 HH:MM（24小時制）。
+5. 點擊"預約日曆"按鈕將會在您的 Google 日曆中創建一個事件。
+6. 確保您有權限訪問指定的日曆。
 """)
