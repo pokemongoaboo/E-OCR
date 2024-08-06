@@ -5,6 +5,7 @@ import io
 from openai import OpenAI
 import requests
 from datetime import datetime, timedelta
+import json
 
 # Set up OpenAI client
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -78,16 +79,26 @@ def create_calendar_event(title, date, time, location):
         "endDateTime": end_datetime.isoformat()
     }
 
-    response = requests.post(GOOGLE_SCRIPT_URL, json=event_data)
-    
-    if response.status_code == 200:
-        result = response.json()
-        if result.get('status') == 'success':
-            return f"事件已成功添加到日曆。事件 ID: {result.get('eventId')}"
+    st.write(f"正在發送請求到 Google Apps Script: {GOOGLE_SCRIPT_URL}")
+    st.write(f"事件數據: {json.dumps(event_data, ensure_ascii=False, indent=2)}")
+
+    try:
+        response = requests.post(GOOGLE_SCRIPT_URL, json=event_data)
+        st.write(f"收到響應。狀態碼: {response.status_code}")
+        st.write(f"響應內容: {response.text}")
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('status') == 'success':
+                return f"事件已成功添加到日曆。事件 ID: {result.get('eventId')}"
+            else:
+                return f"添加事件時發生錯誤: {result.get('message')}"
         else:
-            return f"添加事件時發生錯誤: {result.get('message')}"
-    else:
-        return f"請求失敗。狀態碼: {response.status_code}"
+            return f"請求失敗。狀態碼: {response.status_code}, 響應: {response.text}"
+    except requests.RequestException as e:
+        return f"發送請求時發生錯誤: {str(e)}"
+    except json.JSONDecodeError:
+        return f"無法解析響應 JSON。響應內容: {response.text}"
 
 st.title("醫療文件文字辨識與日曆預約應用")
 
@@ -134,12 +145,15 @@ if uploaded_file is not None:
 
         # Create calendar event button
         if st.button('預約日曆'):
+            st.write("預約日曆按鈕被點擊")
             department = parsed_info.get('Medical department', 'Unknown')
             doctor = parsed_info.get('Doctor\'s name', 'Unknown')
             title = f"預約回診-{department}+{doctor}"
             date = parsed_info.get('Date', '')
             time = parsed_info.get('Time', '')
             location = parsed_info.get('Location', '')
+
+            st.write(f"提取的信息: 科別={department}, 醫生={doctor}, 日期={date}, 時間={time}, 地點={location}")
 
             if date and time and location:
                 result = create_calendar_event(title, date, time, location)
