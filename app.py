@@ -135,10 +135,25 @@ def create_calendar_event(title, date, time, location):
     except json.JSONDecodeError:
         return f"無法解析響應 JSON。響應內容: {response.text}"
 
-st.title("醫療文件文字辨識與日曆預約應用")
+
+
+
+
+# 使用 markdown 來創建置中的兩行標題
+st.markdown("""
+<h1 style="text-align: center;">回診單文字辨識與日曆預約應用</h1>
+    <h2 style="text-align: center;">(Photo OCR to the Calendar Reservation)</h2>
+    """, unsafe_allow_html=True)
+
+    # 添加一些間距
+    st.markdown("<br>", unsafe_allow_html=True)
+
+
+#st.title("醫療文件文字辨識與日曆預約應用")
 
 st.write("""
 這個應用程序可以從上傳的醫療文件圖片中辨識文字，提取關鍵信息，並幫助您預約 Google 日曆。
+(This app can recognize text from uploaded images of medical documents, extract key information, and help you book appointments on Google Calendar.)
 """)
 
 uploaded_file = st.file_uploader("上傳一張照片", type=["jpg", "jpeg", "png"])
